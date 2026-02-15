@@ -1,11 +1,12 @@
 /**
- * FireworksEngine.js - Mobile Optimized High-Density Version
+ * FireworksEngine.js - Reverted Visuals with Modern Text System
  */
 
 const PI2 = Math.PI * 2;
 const random = (min, max) => Math.random() * (max - min) + min;
 const FOCAL_LENGTH = 500;
 
+// 1. 恢复：极致美感的烟花粒子类
 class Particle {
     constructor() { this.alive = false; }
     
@@ -40,32 +41,40 @@ class Particle {
 
     draw(ctx, w, h) {
         const denom = FOCAL_LENGTH + this.z3d;
-        if (denom <= 0) return;
+        const lDenom = FOCAL_LENGTH + this.lz3d;
+        if (denom <= 0 || lDenom <= 0) return;
 
         const scale = FOCAL_LENGTH / denom;
+        const lScale = FOCAL_LENGTH / lDenom;
+
         const x2d = (this.x3d * scale) + w / 2;
         const y2d = (this.y3d * scale) + h / 2;
-        
-        // 移动端优化：跳过屏幕外的绘制
-        if (x2d < 0 || x2d > w || y2d < 0 || y2d > h) return;
-
-        const lScale = FOCAL_LENGTH / (FOCAL_LENGTH + this.lz3d);
         const lx2d = (this.lx3d * lScale) + w / 2;
         const ly2d = (this.ly3d * lScale) + h / 2;
 
+        if (x2d < -200 || x2d > w + 200 || y2d < -200 || y2d > h + 200) return;
+
         ctx.globalAlpha = this.alpha;
         ctx.strokeStyle = this.color;
-        // 增加宽度以补偿视觉感
-        ctx.lineWidth = Math.min(15, (this.type === 'willow' ? 2 : 5) * scale);
-        ctx.lineCap = 'butt'; // butt 性能略高于 round
+        // 恢复：具有体积感的线条宽度
+        ctx.lineWidth = Math.min(20, (this.type === 'willow' ? 2 : 5) * scale);
+        ctx.lineCap = 'round'; // 恢复：圆润线头
         
         ctx.beginPath();
         ctx.moveTo(lx2d, ly2d);
         ctx.lineTo(x2d, y2d);
         ctx.stroke();
+
+        // 恢复：白色叠绘核心
+        if (this.alpha > 0.7) {
+            ctx.strokeStyle = '#FFF';
+            ctx.lineWidth *= 0.4;
+            ctx.stroke();
+        }
     }
 }
 
+// 2. 恢复：带尾迹的火箭类
 class Rocket {
     constructor() { this.alive = false; }
     spawn(x, y, z, vx, vy, vz, targetY, color, onExplode) {
@@ -81,24 +90,39 @@ class Rocket {
         this.y3d += this.vy;
         this.z3d += this.vz;
         
+        if (Math.random() > 0.5) {
+            const p = engine.getParticle();
+            p.spawn(this.x3d, this.y3d, this.z3d, '#FFD700', random(-1,1), random(1,3), random(-1,1), 0.95, 0.1, 0.03, 'normal');
+        }
+
         if (this.y3d <= this.targetY) { 
             this.alive = false; 
             this.onExplode(this.x3d, this.y3d, this.z3d, this.color); 
         }
     }
     draw(ctx, w, h) {
-        const scale = FOCAL_LENGTH / (FOCAL_LENGTH + this.z3d);
-        const x2d = (this.x3d * scale) + w/2;
-        const y2d = (this.y3d * scale) + h/2;
+        const denom = FOCAL_LENGTH + this.z3d;
+        const lDenom = FOCAL_LENGTH + this.lz3d;
+        if (denom <= 0 || lDenom <= 0) return;
         
+        const scale = FOCAL_LENGTH / denom;
+        const lScale = FOCAL_LENGTH / lDenom;
+        
+        ctx.strokeStyle = 'rgba(255, 255, 200, 0.8)';
+        ctx.lineWidth = 2 * scale;
+        ctx.beginPath();
+        ctx.moveTo((this.lx3d * lScale) + w/2, (this.ly3d * lScale) + h/2);
+        ctx.lineTo((this.x3d * scale) + w/2, (this.y3d * scale) + h/2);
+        ctx.stroke();
+
         ctx.fillStyle = '#FFF';
-        ctx.globalAlpha = 1;
-        // 使用 fillRect 代替 arc，移动端性能提升极大
-        const size = 4 * scale;
-        ctx.fillRect(x2d - size/2, y2d - size/2, size, size);
+        ctx.beginPath();
+        ctx.arc((this.x3d * scale) + w/2, (this.y3d * scale) + h/2, 3 * scale, 0, PI2);
+        ctx.fill();
     }
 }
 
+// 3. 保留：当前好评的祝福语粒子逻辑
 class TextParticle {
     constructor() { this.alive = false; }
     spawn(sx, sy, sz, tx, ty, tz, color) {
@@ -106,6 +130,7 @@ class TextParticle {
         this.tx3d = tx; this.ty3d = ty; this.tz3d = tz;
         this.color = color; this.alive = true;
         this.state = 'gathering'; this.alpha = 0;
+        this.vx = 0; this.vy = 0;
     }
     update() {
         if (this.state === 'gathering') {
@@ -115,7 +140,7 @@ class TextParticle {
             this.alpha = Math.min(1, this.alpha + 0.05);
             if (Math.abs(this.z3d - this.tz3d) < 1) this.state = 'holding';
         } else if (this.state === 'dispersing') {
-            this.y3d += 8; this.z3d -= 12; this.alpha -= 0.02;
+            this.x3d += random(-5, 5); this.y3d += 8; this.z3d -= 12; this.alpha -= 0.02;
             if (this.alpha <= 0 || this.z3d <= -FOCAL_LENGTH + 10) this.alive = false;
         }
     }
@@ -123,14 +148,11 @@ class TextParticle {
         const denom = FOCAL_LENGTH + this.z3d;
         if (denom <= 0) return;
         const scale = FOCAL_LENGTH / denom;
-        const x2d = (this.x3d * scale) + w/2;
-        const y2d = (this.y3d * scale) + h/2;
-
         ctx.globalAlpha = this.alpha;
         ctx.fillStyle = this.color;
-        // 核心优化：文字粒子全部改用 fillRect，彻底解决移动端卡顿
-        const size = 3 * scale;
-        ctx.fillRect(x2d - size/2, y2d - size/2, size, size);
+        ctx.beginPath();
+        ctx.arc((this.x3d * scale) + w/2, (this.y3d * scale) + h/2, 3 * scale, 0, PI2);
+        ctx.fill();
     }
 }
 
@@ -180,16 +202,31 @@ class FireworksEngine {
     }
 
     burst(x, y, z, color) {
+        // 恢复：多模式爆破逻辑
+        const patterns = ['sphere', 'willow', 'ring'];
+        const pattern = patterns[Math.floor(Math.random()*patterns.length)];
         const count = 450; 
         for (let i = 0; i < count; i++) {
             const p = this.getParticle();
             const theta = random(0, PI2);
             const phi = Math.acos(random(-1, 1));
-            const strength = random(10, 22);
+            let strength = random(10, 22);
+            if (pattern === 'ring') strength = 14;
+
             const vx = strength * Math.sin(phi) * Math.cos(theta);
             const vy = strength * Math.sin(phi) * Math.sin(theta);
             const vz = strength * Math.cos(phi);
-            p.spawn(x, y, z, color, vx, vy, vz, 0.94, 0.12, random(0.01, 0.02), 'normal');
+
+            let friction = 0.94;
+            let gravity = 0.12;
+            let decay = random(0.01, 0.02);
+            let type = 'normal';
+
+            if (pattern === 'willow') {
+                friction = 0.97; gravity = 0.1; decay = random(0.005, 0.01); type = 'willow';
+            }
+
+            p.spawn(x, y, z, color, vx, vy, vz, friction, gravity, decay, type);
         }
     }
 
