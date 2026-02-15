@@ -1,5 +1,5 @@
 /**
- * FireworksEngine.js - C++ Inspired "Active List" Optimization
+ * FireworksEngine.js - Mobile Optimized with Explosion Throttling
  */
 
 const PI2 = Math.PI * 2;
@@ -34,17 +34,15 @@ class Particle {
         const scale = FOCAL_LENGTH / denom;
         const x2d = (this.x3d * scale) + w / 2;
         const y2d = (this.y3d * scale) + h / 2;
-        const lScale = FOCAL_LENGTH / (FOCAL_LENGTH + this.lz3d);
-        const lx2d = (this.lx3d * lScale) + w / 2;
-        const ly2d = (this.ly3d * lScale) + h / 2;
         if (x2d < -100 || x2d > w + 100 || y2d < -100 || y2d > h + 100) return;
+        const lScale = FOCAL_LENGTH / (FOCAL_LENGTH + this.lz3d);
         ctx.globalAlpha = this.alpha;
         ctx.strokeStyle = this.color;
-        let baseWidth = (this.type === 'willow' ? 2 : 5) * scale;
+        let baseWidth = (this.type === 'willow' ? 2 : 4) * scale;
         ctx.lineWidth = baseWidth;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(lx2d, ly2d);
+        ctx.moveTo((this.lx3d * lScale) + w / 2, (this.ly3d * lScale) + h / 2);
         ctx.lineTo(x2d, y2d);
         ctx.stroke();
         if (this.alpha > 0.7) {
@@ -65,9 +63,9 @@ class TextParticle {
     }
     update() {
         if (this.state === 'gathering') {
-            this.x3d += (this.tx3d - this.x3d) * 0.08;
-            this.y3d += (this.ty3d - this.y3d) * 0.08;
-            this.z3d += (this.tz3d - this.z3d) * 0.08;
+            this.x3d += (this.tx3d - this.x3d) * 0.07;
+            this.y3d += (this.ty3d - this.y3d) * 0.07;
+            this.z3d += (this.tz3d - this.z3d) * 0.07;
             this.alpha = Math.min(1, this.alpha + 0.05);
             if (Math.abs(this.z3d - this.tz3d) < 1) this.state = 'holding';
         } else if (this.state === 'dispersing') {
@@ -99,7 +97,7 @@ class Rocket {
     update(engine) {
         this.lx3d = this.x3d; this.ly3d = this.y3d; this.lz3d = this.z3d;
         this.x3d += this.vx; this.y3d += this.vy; this.z3d += this.vz;
-        if (Math.random() > 0.5) {
+        if (Math.random() > 0.6) {
             engine.spawnParticle(this.x3d, this.y3d, this.z3d, '#FFD700', random(-1,1), random(1,3), random(-1,1), 0.95, 0.1, 0.03, 'normal');
         }
         if (this.y3d <= this.targetY) { 
@@ -130,15 +128,17 @@ class FireworksEngine {
         this.ctx = this.canvas.getContext('2d', { alpha: false });
         this.textCanvas = document.getElementById('textCanvas');
         this.textCtx = this.textCanvas.getContext('2d');
-        
-        // 核心优化：双数组对象池
         this.pool = {
-            particles: { active: [], dead: Array.from({length: 15000}, () => new Particle()) },
-            textParticles: { active: [], dead: Array.from({length: 10000}, () => new TextParticle()) },
+            particles: { active: [], dead: Array.from({length: 12000}, () => new Particle()) },
+            textParticles: { active: [], dead: Array.from({length: 8000}, () => new TextParticle()) },
             rockets: { active: [], dead: Array.from({length: 40}, () => new Rocket()) }
         };
-
         this.colors = ['#FFD700', '#FF4500', '#FF0000', '#00FFFF', '#FFFFFF', '#FF1493', '#ADFF2F'];
+        
+        // 并发控制变量
+        this.lastExplosionTime = 0;
+        this.explosionWindowCount = 0;
+
         this.resize();
         window.addEventListener('resize', () => this.resize());
         this.initInteractions();
@@ -150,7 +150,6 @@ class FireworksEngine {
         this.width = window.innerWidth; this.height = window.innerHeight;
     }
 
-    // 状态转移：Spawn (Dead -> Active)
     spawnParticle(...args) {
         if (this.pool.particles.dead.length === 0) return;
         const p = this.pool.particles.dead.pop();
@@ -185,19 +184,31 @@ class FireworksEngine {
     }
 
     burst(x, y, z, color) {
+        // 并发控制：限制 200ms 内最多触发 2 次大规模爆破
+        const now = Date.now();
+        if (now - this.lastExplosionTime < 200) {
+            this.explosionWindowCount++;
+        } else {
+            this.lastExplosionTime = now;
+            this.explosionWindowCount = 1;
+        }
+        if (this.explosionWindowCount > 2) return;
+
         const patterns = ['sphere', 'willow', 'ring'];
         const pattern = patterns[Math.floor(Math.random()*patterns.length)];
-        const count = 400; 
+        const count = 300; // 减少粒子数
+        
         for (let i = 0; i < count; i++) {
             const theta = random(0, PI2), phi = Math.acos(random(-1, 1));
-            let strength = random(10, 22);
-            if (pattern === 'ring') strength = 14;
+            // 缩小爆炸半径：Strength 从 22 降至 18
+            let strength = random(8, 18);
+            if (pattern === 'ring') strength = 13;
             const vx = strength * Math.sin(phi) * Math.cos(theta);
             const vy = strength * Math.sin(phi) * Math.sin(theta);
             const vz = strength * Math.cos(phi);
             
-            let friction = 0.94, gravity = 0.12, decay = random(0.01, 0.02), type = 'normal';
-            if (pattern === 'willow') { friction = 0.97; gravity = 0.1; decay = random(0.005, 0.01); type = 'willow'; }
+            let friction = 0.94, gravity = 0.12, decay = random(0.01, 0.025), type = 'normal';
+            if (pattern === 'willow') { friction = 0.97; gravity = 0.1; decay = random(0.006, 0.015); type = 'willow'; }
 
             this.spawnParticle(x, y, z, color, vx, vy, vz, friction, gravity, decay, type);
         }
@@ -227,7 +238,6 @@ class FireworksEngine {
                 this.spawnTextParticle(random(-this.width, this.width), random(-this.height, this.height), 800, pt.x, pt.y, 0, "#D4AF37");
             });
             await new Promise(r => setTimeout(r, 2000));
-            // 文字粒子由 update 逻辑自动处理分散和死亡
             this.pool.textParticles.active.forEach(p => p.state = 'dispersing');
             await new Promise(r => setTimeout(r, 600));
         }
@@ -239,7 +249,6 @@ class FireworksEngine {
         this.ctx.fillRect(0, 0, this.width, this.height);
         this.ctx.globalAlpha = 1;
 
-        // 核心优化：只遍历活跃列表，并使用 Swap and Pop 维护
         this._updatePool(this.pool.rockets, (r) => r.update(this));
         this._updatePool(this.pool.particles, (p) => p.update());
         this._updatePool(this.pool.textParticles, (tp) => tp.update());
@@ -257,14 +266,12 @@ class FireworksEngine {
         requestAnimationFrame(() => this.update());
     }
 
-    // 泛型池更新逻辑 (C++ 风格的容器维护)
     _updatePool(group, updateFn) {
         const { active, dead } = group;
         for (let i = active.length - 1; i >= 0; i--) {
             const obj = active[i];
             updateFn(obj);
             if (!obj.alive) {
-                // Swap and Pop: 将死亡对象与末尾交换，O(1) 移除
                 const last = active.pop();
                 if (i < active.length) active[i] = last;
                 dead.push(obj);
