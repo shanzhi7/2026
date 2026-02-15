@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 丙午马年 · 跨年巅峰盛典</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-black text-white overflow-hidden select-none">
+
+    <canvas id="fireworksCanvas" class="fixed inset-0 z-0" style="touch-action: none;"></canvas>
+
+    <div class="lantern-container left-5 md:left-20">
+        <div class="lantern shadow-red"><div class="lantern-text">马</div></div>
+    </div>
+    <div class="lantern-container right-5 md:right-20">
+        <div class="lantern shadow-gold"><div class="lantern-text">年</div></div>
+    </div>
+
+    <main class="relative z-10 w-full h-screen flex flex-col items-center justify-between pointer-events-none py-12 px-4">
+        
+        <div class="text-center mt-4">
+            <h1 class="text-4xl md:text-6xl font-black tracking-[1em] text-gradient-gold pl-[1em] drop-shadow-2xl">丙午马年</h1>
+            <p class="text-[#D4AF37] tracking-[0.5em] mt-4 opacity-80">2026 CNY CELEBRATION</p>
+        </div>
+
+        <div id="countdown-card" class="glass-hollow p-6 md:p-10 rounded-[3rem] border border-white/10 flex flex-col items-center">
+            <div id="timer" class="flex items-baseline gap-2 md:gap-6">
+                <div class="timer-unit"><span id="days" class="num">00</span><span class="unit">天</span></div>
+                <div class="timer-unit"><span id="hours" class="num">00</span><span class="unit">时</span></div>
+                <div class="timer-unit"><span id="minutes" class="num">00</span><span class="unit">分</span></div>
+                <div class="timer-unit"><span id="seconds" class="num">00</span><span class="unit">秒</span></div>
+            </div>
+            <p id="status-text" class="mt-6 text-lg tracking-[0.4em] text-white/60">距离农历正月初一</p>
+        </div>
+
+        <!-- 升级后的按钮 -->
+        <div class="w-full max-w-sm pointer-events-auto px-4">
+            <button id="btn-luck" class="ultimate-btn-v2 group w-full relative overflow-hidden py-5 rounded-2xl border-2 border-[#D4AF37] bg-black/40">
+                <span class="relative z-10 text-[#D4AF37] text-2xl font-black tracking-[0.5em] pl-[0.5em] transition-colors group-hover:text-black">点燃马年好运</span>
+                <div class="btn-fill absolute inset-0 bg-[#D4AF37] translate-y-full transition-transform duration-300 group-hover:translate-y-0"></div>
+                <!-- 扫光动画 -->
+                <div class="sweep absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full"></div>
+            </button>
+        </div>
+    </main>
+
+    <!-- 隐藏的文字采样画布 -->
+    <canvas id="textCanvas" style="display:none;"></canvas>
+
+    <script src="FireworksEngine.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
